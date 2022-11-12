@@ -177,6 +177,8 @@ class FullyConnectedNet(object):
 						self.bn_params[i-1]
 					)
 				scores, caches[f'relu{i}']=relu_forward(scores)
+				if self.use_dropout:
+					scores ,caches[f'drop{i}']=dropout_forward(scores, self.dropout_param)
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
@@ -210,6 +212,8 @@ class FullyConnectedNet(object):
 		for i in range(self.num_layers, 0, -1):
 			#relu backwards
 			if i!=self.num_layers:
+				if self.use_dropout:
+					dx=dropout_backward(dx, caches[f'drop{i}'])
 				dx=relu_backward(dx, caches[f'relu{i}'])
 				#batchnorm backwards
 				if self.normalization == 'batchnorm':

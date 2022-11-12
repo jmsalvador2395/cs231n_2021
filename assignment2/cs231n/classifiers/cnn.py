@@ -63,7 +63,32 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+		'''
+        self,
+        input_dim=(3, 32, 32),
+        num_filters=32,
+        filter_size=7,
+        hidden_dim=100,
+        num_classes=10,
+        weight_scale=1e-3,
+		'''
+ 
+		
+		dims=[input_dim] + hidden_dims + [num_classes]
+		for i in range(1, self.num_layers+1):
+			self.params[f'W{i}']=np.random.normal(
+					scale=weight_scale, 
+					size=(num_filters, filter_size, filter_size)
+
+				)
+			)
+			self.params[f'b{i}']=np.zeros(dims[i])
+			if normalization and i != self.num_layers:
+				self.params[f'gamma{i}']=np.ones(dims[i])
+				self.params[f'beta{i}']=np.zeros(dims[i])
+
+
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

@@ -1,5 +1,6 @@
 from builtins import range
 import numpy as np
+from itertools import product
 
 
 def affine_forward(x, w, b):
@@ -500,7 +501,9 @@ def dropout_forward(x, dropout_param):
 		#######################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-		pass
+		mask=(np.random.rand(*x.shape) < p)
+		cache=(dropout_param, mask)
+		out=x*mask
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		#######################################################################
@@ -512,7 +515,8 @@ def dropout_forward(x, dropout_param):
 		#######################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-		pass
+		mask=(np.random.rand(*x.shape) < p)/p
+		out=x*mask
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		#######################################################################
@@ -541,8 +545,8 @@ def dropout_backward(dout, cache):
 		# TODO: Implement training phase backward pass for inverted dropout   #
 		#######################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-		pass
+		
+		dx=dout*mask
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		#######################################################################
@@ -586,7 +590,32 @@ def conv_forward_naive(x, w, b, conv_param):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	#params
+	stride, pad=conv_param['stride'], conv_param['pad']
+	N, C, H, W=x.shape
+	F, C, HH, WW=w.shape
+	pad_width=[(0, 0), (0, 0)]+[(1,1)]*(x.ndim-2)
+	Hp=int((H-HH+2*pad)/stride+1)
+	Wp=int((W-WW+2*pad)/stride+1)
+
+	#create padded image
+	padded=np.pad(x, pad_width=pad_width)
+
+	#compute output
+	out=np.zeros((N, F, Hp, Wp))
+	'''
+	#naive
+	for n, f, i, j in product(range(N), range(F), range(Hp), range(Wp)):
+		out[n, f, i, j]=np.sum(padded[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW]*w[f])+b[f]
+	'''
+	#alt with less for loops
+	for i, j in product(range(Hp), range(Wp)):
+		out[:, :, i, j]=b+np.tensordot(
+			padded[:, :, i*stride:i*stride+HH, 
+			j*stride:j*stride+WW], 
+			w, 
+			axes=([1, 2, 3], [1,2,3])
+		)
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
@@ -614,7 +643,40 @@ def conv_backward_naive(dout, cache):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	x, w, b, conv_param=cache
+
+	#params
+	stride, pad=conv_param['stride'], conv_param['pad']
+	N, C, H, W=x.shape
+	F, C, HH, WW=w.shape
+	pad_width=[(0, 0), (0, 0)]+[(1,1)]*(x.ndim-2)
+	Hp=int((H-HH+2*pad)/stride+1)
+	Wp=int((W-WW+2*pad)/stride+1)
+
+	#loop through image height and width
+	padded=np.pad(x, pad_width=pad_width)
+	dx=np.zeros((N, C, H+2*pad, W+2*pad))
+	dw=np.zeros(w.shape)
+	for i, j in product(range(Hp), range(Wp)):
+		#compute dx
+		dx[:, :, i*stride:i*stride+HH, j*stride:j*stride+WW]+=np.tensordot(
+			dout[:, :, i, j],
+			w,
+			axes=[(-1), (0)]
+		)
+		#compute dw
+		dw+=np.tensordot(
+			dout[:, :, i, j],
+			padded[:, :, i*stride:i*stride+HH, j*stride:j*stride+WW], 
+			axes=[(0), (0)]
+		)
+		
+	#truncate padding
+	dx=dx[:, :, 1:-1, 1:-1]
+
+	#compute db
+	db=np.sum(dout, axis=(0, 2, 3))
+
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
@@ -649,7 +711,21 @@ def max_pool_forward_naive(x, pool_param):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	#params
+	N, C, H, W=x.shape
+	pool_height=pool_param['pool_height']
+	pool_width=pool_param['pool_width']
+	stride=pool_param['stride']
+
+	Hp=int((H-pool_height)/stride+1)
+	Wp=int((W-pool_width)/stride+1)
+	out=np.zeros((N, C, Hp, Wp))
+
+	for i, j in product(range(Hp), range(Wp)):
+		out[:, :, i, j]=np.max(
+			x[:, :, i*stride:i*stride+pool_height, j*stride:j*stride+pool_width],
+			axis=(-2, -1)
+		)
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
@@ -675,7 +751,33 @@ def max_pool_backward_naive(dout, cache):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	import pdb
+
+	#params
+	x, pool_param=cache
+	N, C, H, W=x.shape
+
+	pool_height, pool_width, stride = (
+		pool_param['pool_height'],
+		pool_param['pool_width'],
+		pool_param['stride']
+	)
+
+	Hp=int((H-pool_height)/stride+1)
+	Wp=int((W-pool_width)/stride+1)
+
+	dx=np.zeros(x.shape)
+
+	for n, c, i, j  in product(range(N), range(C), range(Hp), range(Wp)):
+		window=x[
+			n, 
+			c,
+			i*stride:i*stride+pool_height,
+			j*stride:j*stride+pool_width
+		]
+		row, column=np.unravel_index(np.argmax(window), window.shape)
+
+		dx[n, c, i*stride+row, j*stride+column]=dout[n, c, i, j]
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
