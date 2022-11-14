@@ -608,13 +608,16 @@ def conv_forward_naive(x, w, b, conv_param):
 	for n, f, i, j in product(range(N), range(F), range(Hp), range(Wp)):
 		out[n, f, i, j]=np.sum(padded[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW]*w[f])+b[f]
 	'''
-	#alt with less for loops
+	#fast method: loops through height and width
+	#N samples and F filters are handled by the tensordot computeation
 	for i, j in product(range(Hp), range(Wp)):
 		out[:, :, i, j]=b+np.tensordot(
-			padded[:, :, i*stride:i*stride+HH, 
-			j*stride:j*stride+WW], 
+			padded[:, :, 
+				i*stride:i*stride+HH, 
+				j*stride:j*stride+WW
+			], 
 			w, 
-			axes=([1, 2, 3], [1,2,3])
+			axes=([1, 2, 3], [1, 2, 3])
 		)
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -659,7 +662,10 @@ def conv_backward_naive(dout, cache):
 	dw=np.zeros(w.shape)
 	for i, j in product(range(Hp), range(Wp)):
 		#compute dx
-		dx[:, :, i*stride:i*stride+HH, j*stride:j*stride+WW]+=np.tensordot(
+		dx[:, :, 
+			i*stride:i*stride+HH, 
+			j*stride:j*stride+WW
+		] += np.tensordot(
 			dout[:, :, i, j],
 			w,
 			axes=[(-1), (0)]
@@ -667,7 +673,10 @@ def conv_backward_naive(dout, cache):
 		#compute dw
 		dw+=np.tensordot(
 			dout[:, :, i, j],
-			padded[:, :, i*stride:i*stride+HH, j*stride:j*stride+WW], 
+			padded[:, :, 
+				i*stride:i*stride+HH, 
+				j*stride:j*stride+WW
+			], 
 			axes=[(0), (0)]
 		)
 		
@@ -723,7 +732,10 @@ def max_pool_forward_naive(x, pool_param):
 
 	for i, j in product(range(Hp), range(Wp)):
 		out[:, :, i, j]=np.max(
-			x[:, :, i*stride:i*stride+pool_height, j*stride:j*stride+pool_width],
+			x[:, :, 
+				i*stride:i*stride+pool_height, 
+				j*stride:j*stride+pool_width
+			],
 			axis=(-2, -1)
 		)
 
@@ -751,8 +763,6 @@ def max_pool_backward_naive(dout, cache):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	import pdb
-
 	#params
 	x, pool_param=cache
 	N, C, H, W=x.shape
@@ -767,7 +777,10 @@ def max_pool_backward_naive(dout, cache):
 	Wp=int((W-pool_width)/stride+1)
 
 	dx=np.zeros(x.shape)
-
+	mask=np.zeros(x.shape)
+	
+	'''
+	#naive method
 	for n, c, i, j  in product(range(N), range(C), range(Hp), range(Wp)):
 		window=x[
 			n, 
@@ -775,9 +788,44 @@ def max_pool_backward_naive(dout, cache):
 			i*stride:i*stride+pool_height,
 			j*stride:j*stride+pool_width
 		]
-		row, column=np.unravel_index(np.argmax(window), window.shape)
 
+		row, column=np.unravel_index(np.argmax(window), window.shape)
 		dx[n, c, i*stride+row, j*stride+column]=dout[n, c, i, j]
+	'''
+	
+	#fast method: only iterates through height and width of the filters
+	for i, j  in product(range(Hp), range(Wp)):
+		#compute the original max pool
+		max_pool=np.max(
+			x[:, :,
+				i*stride:i*stride+pool_height,
+				j*stride:j*stride+pool_width
+			],
+			axis=(-1, -2),
+			keepdims=True
+		)
+
+		#build array with same shape as x where each element is the max of its pool
+		mask[:, :, 
+			i*stride:i*stride+pool_height,
+			j*stride:j*stride+pool_width
+		] = np.tile(
+			max_pool, 
+			(1, 1, pool_height, pool_width)
+		)
+
+		#make the corresponding pool contain all values of dout. (values get masked)
+		dx[:, :, 
+			i*stride:i*stride+pool_height,
+			j*stride:j*stride+pool_width
+		] = np.tile(
+			dout[:, :, i, j][:, :, None, None], 
+			(1, 1, pool_height, pool_width)
+		)
+
+	#compute the final mask and apply it to dx
+	mask=(mask==x)
+	dx*=mask
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
