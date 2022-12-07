@@ -606,7 +606,10 @@ def conv_forward_naive(x, w, b, conv_param):
 	'''
 	#naive
 	for n, f, i, j in product(range(N), range(F), range(Hp), range(Wp)):
-		out[n, f, i, j]=np.sum(padded[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW]*w[f])+b[f]
+		out[n, f, i, j]=b[f]+np.sum(padded[n, :, 
+			i*stride:i*stride+HH, 
+			j*stride:j*stride+WW]*w[f]
+		)
 	'''
 	#fast method: loops through height and width
 	#N samples and F filters are handled by the tensordot computeation
