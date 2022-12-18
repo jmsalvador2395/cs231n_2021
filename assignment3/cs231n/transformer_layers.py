@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import math
+import numpy as np
 
 """
 This file defines layer types that are commonly used for transformers.
@@ -38,7 +39,16 @@ class PositionalEncoding(nn.Module):
 		############################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-		pass
+		even = range(0, embed_dim, 2)
+		odd = range(1, embed_dim, 2)
+		_, row, col = torch.tensor(np.indices(pe.shape))
+
+		pe[0, :, even] = torch.sin(
+			row[0, :, even]*10000** - (col[0, :, even]/embed_dim)
+		)
+		pe[0, :, odd] = torch.cos(
+			row[0, :, odd]*10000** - ((col[0, :, odd]-1)/embed_dim)
+		)
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
@@ -70,7 +80,11 @@ class PositionalEncoding(nn.Module):
 		############################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-		pass
+		import pdb
+		output = x + self.pe[:, :S]
+		pdb.set_trace()
+		output = self.dropout(output)
+		pdb.set_trace()
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
@@ -172,22 +186,17 @@ class MultiHeadAttention(nn.Module):
 		d = self.emd_dim
 
 		Q = self.query(query).reshape(N, S, H, D).permute(0, 2, 1, 3) # to (N, H, S, D)
-		K = self.key(key).reshape(N, T, H, D).permute(0, 2, 3, 1) # to (N, H, D, T)
+		K = self.key(key).reshape(N, T, H, D).permute(0, 2, 1, 3) # to (N, H, D, T)
 		V = self.value(value).reshape(N, T, H, D).permute(0, 2, 1, 3) # to (N, H, T, D)
 
-		output = torch.matmul(Q, K)/math.sqrt(D)
-
+		output = torch.matmul(Q, K.movedim(2, 3))/math.sqrt(D)
 		if attn_mask is not None:
 			output = output.masked_fill(attn_mask==0, -math.inf)
-		output = F.softmax(output, dim=-1)
-		output = self.attn_drop(output)
+		output = self.attn_drop(F.softmax(output, dim=-1))
 
-		output = torch.matmul(output, V).permute(0, 2, 1, 3)
-		output = output.reshape((N, S, E))
+		output = torch.matmul(output, V).movedim(2, 1)
 
-		output=self.proj(output)
-
-		print(output)
+		output = self.proj(output.reshape((N, S, E)))
 		
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
