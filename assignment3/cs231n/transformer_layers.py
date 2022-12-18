@@ -164,41 +164,31 @@ class MultiHeadAttention(nn.Module):
 		#	  function masked_fill may come in handy.							   #
 		############################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+		import pdb
 		
 		#define other dims
-		H=self.n_head
-		D=self.head_dim
-		d=self.emd_dim
+		H = self.n_head
+		D = self.head_dim
+		d = self.emd_dim
 
-		#compute projected q, k, v and split into heads
-		Q=self.query(query).reshape(N, S, H, D).moveaxis(1,2)
-		K=self.key(key).reshape(N, T, H, D).moveaxis(1,2).transpose(2,3)
-		V=self.value(value).reshape(N, T, H, D).moveaxis(1,2)
+		Q = self.query(query).reshape(N, S, H, D).permute(0, 2, 1, 3) # to (N, H, S, D)
+		K = self.key(key).reshape(N, T, H, D).permute(0, 2, 3, 1) # to (N, H, D, T)
+		V = self.value(value).reshape(N, T, H, D).permute(0, 2, 1, 3) # to (N, H, T, D)
 
-		# compute QK/sqrt(d)
-		res=(Q@K)/math.sqrt(D)
-		#res=(Q@K)/math.sqrt(d/H)
-		#res=(Q@K)/math.sqrt(E)
+		output = torch.matmul(Q, K)/math.sqrt(D)
 
 		if attn_mask is not None:
-			pass
-			#res=res.masked_fill(attn_mask==0, -math.inf)
-			#res=res.masked_fill(attn_mask==0, float('-inf'))
+			output = output.masked_fill(attn_mask==0, -math.inf)
+		output = F.softmax(output, dim=-1)
+		output = self.attn_drop(output)
 
-		#compute result of attention without the V multiplication
-		res=self.attn_drop(
-			F.softmax(
-				res,
-				dim=-1
-			)
-		)
-		#matmul with V
-		res=res@V
+		output = torch.matmul(output, V).permute(0, 2, 1, 3)
+		output = output.reshape((N, S, E))
 
-		#reshape and project
-		output=self.proj(res.moveaxis(1,2).reshape((N, S, E)))
+		output=self.proj(output)
+
 		print(output)
-
+		
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
 		#							  END OF YOUR CODE							   #
