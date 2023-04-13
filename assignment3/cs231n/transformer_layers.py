@@ -80,11 +80,8 @@ class PositionalEncoding(nn.Module):
 		############################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-		import pdb
 		output = x + self.pe[:, :S]
-		pdb.set_trace()
 		output = self.dropout(output)
-		pdb.set_trace()
 
 		# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 		############################################################################
@@ -178,7 +175,6 @@ class MultiHeadAttention(nn.Module):
 		#	  function masked_fill may come in handy.							   #
 		############################################################################
 		# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-		import pdb
 		
 		#define other dims
 		H = self.n_head
@@ -191,7 +187,7 @@ class MultiHeadAttention(nn.Module):
 
 		output = torch.matmul(Q, K.movedim(2, 3))/math.sqrt(D)
 		if attn_mask is not None:
-			output = output.masked_fill(attn_mask==0, -math.inf)
+			output = output.masked_fill(attn_mask==0, float('-inf'))
 		output = self.attn_drop(F.softmax(output, dim=-1))
 
 		output = torch.matmul(output, V).movedim(2, 1)
