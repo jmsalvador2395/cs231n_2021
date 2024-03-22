@@ -77,7 +77,7 @@ class KNearestNeighbor(object):
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-                pass
+                dists[i, j] = np.sqrt(np.sum((X[i] - self.X_train[j])**2))
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -101,7 +101,7 @@ class KNearestNeighbor(object):
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            dists[i] = np.sqrt(np.sum((X[i] - self.X_train)**2, axis=-1))
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -131,7 +131,9 @@ class KNearestNeighbor(object):
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_sqr = np.sum(X**2, keepdims=True, axis=-1)
+        y_sqr = np.sum(self.X_train**2, keepdims=True, axis=-1).T
+        dists = np.sqrt(x_sqr + y_sqr - 2*X@self.X_train.T)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return dists
@@ -164,7 +166,8 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            closest_y = np.argsort(dists, axis=-1)[..., :k]
+            closest_y = self.y_train[closest_y]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
             #########################################################################
@@ -176,7 +179,12 @@ class KNearestNeighbor(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            rows = range(len(closest_y))
+            counts = np.zeros((len(closest_y), 10))
+            for i in range(k):
+                counts[rows, closest_y[rows, i]] += 1
+            
+            y_pred = np.argmax(counts, axis=-1)
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
