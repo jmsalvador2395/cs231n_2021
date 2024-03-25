@@ -162,7 +162,7 @@ class CaptioningRNN:
 
 		# pass through rnn or lstm
 		if self.cell_type == 'lstm':
-			pass
+			out, cache['lstm'] = lstm_forward(out, h0, Wx, Wh, b)
 		elif self.cell_type == 'rnn':
 			out, cache['rnn'] = rnn_forward(out, h0, Wx, Wh, b)
 
@@ -180,7 +180,10 @@ class CaptioningRNN:
 		grads['b_vocab'] = db
 
 		if self.cell_type == 'lstm':
-			pass
+			dout_x, dout_h0, dWx, dWh, db = lstm_backward(dout, cache['lstm'])
+			grads['Wx'] = dWx
+			grads['Wh'] = dWh
+			grads['b'] = db
 		elif self.cell_type == 'rnn':
 			dout_x, dout_h0, dWx, dWh, db = rnn_backward(dout, cache['rnn'])
 			grads['Wx'] = dWx
@@ -262,6 +265,7 @@ class CaptioningRNN:
 			self.params['W_proj'],
 			self.params['b_proj'],
 		)
+		ct = np.zeros_like(ht)
 
 		# get <start> tokens
 		x = np.full((N, 1), self._start, dtype=int)
@@ -270,7 +274,10 @@ class CaptioningRNN:
 
 		for t in range(max_length):
 			# get next hidden state
-			ht, _ = rnn_step_forward(x, ht, Wx, Wh, b)
+			if self.cell_type == 'rnn':
+				ht, _ = rnn_step_forward(x, ht, Wx, Wh, b)
+			elif self.cell_type == 'lstm':
+				ht, ct, _ = lstm_step_forward(x, ht, ct, Wx, Wh, b)
 
 			# compute next word prediction
 			scores, _ = affine_forward(ht, W_vocab, b_vocab)
