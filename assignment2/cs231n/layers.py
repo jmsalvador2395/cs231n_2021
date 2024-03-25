@@ -421,7 +421,13 @@ def layernorm_forward(x, gamma, beta, ln_param):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	mu=np.mean(x, axis=-1, keepdims=True)
+	var=np.mean((x-mu)**2, axis=-1, keepdims=True)
+
+	xhat=(x-mu)/np.sqrt(var+eps)
+	out=gamma*xhat+beta
+
+	cache=(x, mu, var, xhat, gamma, beta, eps)
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################
@@ -455,7 +461,18 @@ def layernorm_backward(dout, cache):
 	###########################################################################
 	# *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-	pass
+	x, mu, var, xhat, gamma, beta, eps = cache
+	m=x.shape[-1]
+
+	#gamma and beta gradients
+	dgamma=np.sum(xhat*dout, axis=0)
+	dbeta=np.sum(dout, axis=0)
+
+	#x gradient
+	dl_dxhat=dout*gamma
+	dl_dvar=np.sum(dl_dxhat*(x-mu), axis=-1, keepdims=True)*(-.5)*(var+eps)**(-3/2)
+	dl_dmu=np.sum(-dl_dxhat/np.sqrt(var+eps), axis=-1, keepdims=True)+dl_dvar*np.mean(-2*(x-mu), axis=-1, keepdims=True)
+	dx=dl_dxhat/np.sqrt(var+eps)+dl_dvar*(2*(x-mu)/m)+dl_dmu/m
 
 	# *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 	###########################################################################

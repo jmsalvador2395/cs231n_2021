@@ -176,6 +176,14 @@ class FullyConnectedNet(object):
 						self.params[f'beta{i}'],
 						self.bn_params[i-1]
 					)
+				elif self.normalization == 'layernorm':
+					scores, caches[f'lnorm{i}']=layernorm_forward(
+						scores,
+						self.params[f'gamma{i}'],
+						self.params[f'beta{i}'],
+						self.bn_params[i-1]
+					)
+
 				scores, caches[f'relu{i}']=relu_forward(scores)
 				if self.use_dropout:
 					scores ,caches[f'drop{i}']=dropout_forward(scores, self.dropout_param)
@@ -220,6 +228,11 @@ class FullyConnectedNet(object):
 					dx, grads[f'gamma{i}'], grads[f'beta{i}']=batchnorm_backward(
 						dx, 
 						caches[f'bnorm{i}']
+					)
+				elif self.normalization == 'layernorm':
+					dx, grads[f'gamma{i}'], grads[f'beta{i}']=layernorm_backward(
+						dx,
+						caches[f'lnorm{i}']
 					)
 			
 			#affine backwards
