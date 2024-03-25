@@ -2,6 +2,7 @@ from builtins import range
 import numpy as np
 from random import shuffle
 from past.builtins import xrange
+from itertools import product
 
 
 def svm_loss_naive(W, X, y, reg):
@@ -55,7 +56,20 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    delta = 1
+    col_ids = set(range(num_classes))
+    scores = X@W
+    for i, j in product(range(num_train), range(num_classes)):
+        if j == y[i]:
+            grad = (scores[i, list(col_ids - {y[i]})] - scores[i, y[i]] + delta) > 0
+            grad = -np.sum(grad)
+        else:
+            grad = scores[i, j] - scores[i, y[i]] + delta > 0
+        dW[:, j] +=  grad * X[i]
+    dW /= num_train
+
+    # add regularization gradient 
+    dW += 2*W*reg
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -78,7 +92,17 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    delta = 1
+    scores = X@W
+    N, C = scores.shape
+
+    loss = np.copy(scores)
+    loss = loss - loss[range(N), y][..., None] + delta
+    loss[range(N), y] = 0
+    loss = np.sum(np.maximum(0, loss))
+    loss /= N
+
+    loss += reg*np.sum(W**2)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -93,7 +117,13 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    counts = ((scores - scores[range(N), y][..., None] + delta) > 0).astype(float)
+    counts[range(N), y] = 0
+    counts[range(N), y] = -np.sum(counts, axis=-1)
+
+    dW = X.T@counts
+    dW /= N
+    dW += 2*W*reg
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
